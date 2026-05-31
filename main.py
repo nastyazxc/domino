@@ -1,8 +1,9 @@
 import sys
 import random
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
-                             QHBoxLayout, QPushButton, QLabel, QStackedWidget)
-from PyQt6.QtCore import Qt
+                             QHBoxLayout, QPushButton, QLabel, QStackedWidget,
+                             QMessageBox)
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont
 
 # --- ЛОГИКА ИГРЫ ---
@@ -65,6 +66,27 @@ class DominoLogic:
         return sum(sum(tile) for tile in self.hands[player])
 
 
+# --- СТИЛИЗАЦИЯ ---
+TILE_STYLE = """
+QPushButton {
+    background-color: #fdfdfd;
+    border: 2px solid #222;
+    border-radius: 8px;
+    color: #000;
+    font-weight: bold;
+}
+QPushButton:disabled {
+    background-color: #aaaaaa;
+    color: #000;
+}
+QPushButton:hover:enabled {
+    border: 2px solid #f1c40f;
+    background-color: #ffffff;
+    color: #000;
+}
+"""
+
+
 # --- ИНТЕРФЕЙС ---
 class DominoApp(QMainWindow):
     def __init__(self):
@@ -78,6 +100,7 @@ class DominoApp(QMainWindow):
         self.init_main_menu()
         self.init_rules_screen()
         self.init_game_screen()
+        self.init_end_screen()
 
     def initUI(self):
         self.setWindowTitle('Домино')
@@ -227,9 +250,79 @@ class DominoApp(QMainWindow):
         main_l.addLayout(ctrl_l)
         self.stacked.addWidget(self.game_widget)
 
+    def init_end_screen(self):
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        self.res_lbl = QLabel()
+        self.res_lbl.setFont(QFont("Arial", 40, QFont.Weight.Bold))
+        self.res_lbl.setStyleSheet("color: #333;")
+        btn = QPushButton("В МЕНЮ")
+        btn.setFixedSize(300, 70)
+        btn.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+        btn.setStyleSheet("border-radius: 10px;background-color: #fdfdfd; border: 1px solid #333; color: #000;")
+        btn.clicked.connect(lambda: self.stacked.setCurrentIndex(0))
+        layout.addWidget(self.res_lbl, alignment=Qt.AlignmentFlag.AlignCenter)
+        layout.addSpacing(40)
+        layout.addWidget(btn, alignment=Qt.AlignmentFlag.AlignCenter)
+        self.stacked.addWidget(widget)
+
     def start_new_game(self):
         self.logic.reset_game()
+        self.update_ui()
         self.stacked.setCurrentIndex(2)
+
+    def update_ui(self):
+        for l in [self.board_l, self.hand_l]:
+            while l.count():
+                w = l.takeAt(0).widget()
+                if w: w.deleteLater()
+
+        for tile in self.logic.board:
+            self.board_l.addWidget(self.create_tile_btn(tile, enabled=False, horizontal=True))
+
+        p = self.logic.current_player
+        self.turn_lbl.setText(f"ХОД ИГРОКА {p}")
+        for t in self.logic.hands[p]:
+            btn = self.create_tile_btn(t, enabled=self.logic.is_valid_move(t))
+            btn.clicked.connect(lambda ch, x=t: self.play_action(x))
+            self.hand_l.addWidget(btn)
+
+        opp = 2 if p == 1 else 1
+        self.opp_lbl.setText(f"У СОПЕРНИКА: {len(self.logic.hands[opp])}")
+        self.baz_lbl.setText(f"БАЗАР: {len(self.logic.bazaar)}")
+        self.check_game_over()
+
+    def create_tile_btn(self, tile, enabled=True, horizontal=False):
+        is_double = (tile[0] == tile[1])
+        
+        # Дубли всегда рисуем вертикально (поперек)
+        if is_double:
+            text = f"{tile[0]}\n—\n{tile[1]}"
+            btn = QPushButton(text)
+            btn.setFixedSize(55, 80)
+            btn.setFont(QFont("Arial", 14))
+        else:
+            if horizontal:
+                text = f"{tile[0]} | {tile[1]}"
+                btn = QPushButton(text)
+                btn.setFixedSize(80, 55)
+            else:
+                text = f"{tile[0]}\n—\n{tile[1]}"
+                btn = QPushButton(text)
+                btn.setFixedSize(55, 80)
+            btn.setFont(QFont("Arial", 14))
+        
+        btn.setEnabled(enabled)
+        btn.setStyleSheet(TILE_STYLE)
+        return btn
+
+    def play_action(self, tile):
+        self.logic.make_move(tile, self.logic.current_player)
+        self.show_transfer_screen()
+
+    def show_transfer_screen(self):
+        # Временно: просто обновляем UI (позже будет экран передачи)
+        self.update_ui()
 
     def draw_bazaar(self):
         # Заглушка
@@ -238,6 +331,26 @@ class DominoApp(QMainWindow):
     def surrender_action(self):
         # Заглушка
         pass
+
+    def check_game_over(self):
+        for p in [1, 2]:
+            if not self.logic.hands[p]:
+                score = self.logic.calculate_score(2 if p == 1 else 1)
+                self.show_results(f"ПОБЕДА ИГРОКА {p}!\nОЧКИ ПРОИГРАВШЕГО: {score}")
+                return
+
+        if not self.logic.bazaar:
+            can_p1 = any(self.logic.is_valid_move(t) for t in self.logic.hands[1])
+            can_p2 = any(self.logic.is_valid_move(t) for t in self.logic.hands[2])
+            if not can_p1 and not can_p2:
+                s1, s2 = self.logic.calculate_score(1), self.logic.calculate_score(2)
+                res = f"РЫБА!\nИГРОК 1: {s1} | ИГРОК 2: {s2}\n"
+                res += "ПОБЕДА ИГРОКА 1" if s1 < s2 else "ПОБЕДА ИГРОКА 2" if s2 < s1 else "НИЧЬЯ"
+                self.show_results(res)
+
+    def show_results(self, text):
+        self.res_lbl.setText(text)
+        self.stacked.setCurrentIndex(3)
 
 
 if __name__ == "__main__":
