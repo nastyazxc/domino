@@ -60,7 +60,6 @@ class DominoLogic:
             elif tile[1] == r:
                 self.board.append((tile[1], tile[0]))
         self.hands[player].remove(tile)
-        # Переключение хода на другого игрока
         self.current_player = 2 if player == 1 else 1
 
     def calculate_score(self, player):
@@ -102,11 +101,28 @@ class DominoApp(QMainWindow):
         self.init_rules_screen()
         self.init_game_screen()
         self.init_end_screen()
+        self.init_overlay_screen()
 
     def initUI(self):
         self.setWindowTitle('Домино')
         self.setStyleSheet("QMainWindow { background-color: rgb(255,238,140); }")
         self.setGeometry(300, 300, 800, 600)
+
+    def init_overlay_screen(self):
+        self.overlay_widget = QWidget()
+        self.overlay_widget.setStyleSheet("background-color: #2c3e50;")
+        layout = QVBoxLayout(self.overlay_widget)
+        
+        self.wait_lbl = QLabel("ПЕРЕДАЙТЕ ХОД\nСЛЕДУЮЩЕМУ ИГРОКУ")
+        self.wait_lbl.setFont(QFont("Arial", 40, QFont.Weight.Bold))
+        self.wait_lbl.setStyleSheet("color: white;")
+        self.wait_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+        layout.addStretch()
+        layout.addWidget(self.wait_lbl)
+        layout.addStretch()
+        
+        self.stacked.addWidget(self.overlay_widget)
 
     def init_main_menu(self):
         widget = QWidget()
@@ -273,33 +289,24 @@ class DominoApp(QMainWindow):
         self.stacked.setCurrentIndex(2)
 
     def update_ui(self):
-        # Очищаем доску и руку
         for l in [self.board_l, self.hand_l]:
             while l.count():
                 w = l.takeAt(0).widget()
                 if w: w.deleteLater()
 
-        # Отображаем доску
         for tile in self.logic.board:
             self.board_l.addWidget(self.create_tile_btn(tile, enabled=False, horizontal=True))
 
-        # Отображаем руку ТЕКУЩЕГО игрока
-        current = self.logic.current_player
-        self.turn_lbl.setText(f"ХОД ИГРОКА {current}")
-        
-        for tile in self.logic.hands[current]:
-            # Проверяем, может ли игрок сходить этой костяшкой
-            can_move = self.logic.is_valid_move(tile)
-            btn = self.create_tile_btn(tile, enabled=can_move)
-            btn.clicked.connect(lambda ch, x=tile: self.play_action(x))
+        p = self.logic.current_player
+        self.turn_lbl.setText(f"ХОД ИГРОКА {p}")
+        for t in self.logic.hands[p]:
+            btn = self.create_tile_btn(t, enabled=self.logic.is_valid_move(t))
+            btn.clicked.connect(lambda ch, x=t: self.play_action(x))
             self.hand_l.addWidget(btn)
 
-        # Информация о сопернике и базаре
-        opponent = 2 if current == 1 else 1
-        self.opp_lbl.setText(f"У СОПЕРНИКА: {len(self.logic.hands[opponent])}")
+        opp = 2 if p == 1 else 1
+        self.opp_lbl.setText(f"У СОПЕРНИКА: {len(self.logic.hands[opp])}")
         self.baz_lbl.setText(f"БАЗАР: {len(self.logic.bazaar)}")
-        
-        # Проверяем, не закончилась ли игра
         self.check_game_over()
 
     def create_tile_btn(self, tile, enabled=True, horizontal=False):
@@ -326,45 +333,41 @@ class DominoApp(QMainWindow):
         return btn
 
     def play_action(self, tile):
-        # Делаем ход текущим игроком
-        current_player = self.logic.current_player
-        self.logic.make_move(tile, current_player)
-        # Обновляем интерфейс (ход уже переключился внутри make_move)
+        self.logic.make_move(tile, self.logic.current_player)
+        self.show_transfer_screen()
+
+    def show_transfer_screen(self):
+        next_player = self.logic.current_player
+        self.wait_lbl.setText(f"ХОД\nИГРОКА {next_player}")
+        self.stacked.setCurrentIndex(4)
+        QTimer.singleShot(3000, self.finish_transfer)  # 3 секунды
+
+    def finish_transfer(self):
         self.update_ui()
+        self.stacked.setCurrentIndex(2)
 
     def draw_bazaar(self):
-        # Заглушка (будет реализовано позже)
         QMessageBox.information(self, "В разработке", "Функция взятия из базара будет добавлена в следующем коммите")
 
     def surrender_action(self):
-        # Обработка сдачи
-        current = self.logic.current_player
-        winner = 2 if current == 1 else 1
-        self.show_results(f"ИГРОК {current} СДАЛСЯ!\nПОБЕДА ИГРОКА {winner}")
+        winner = 2 if self.logic.current_player == 1 else 1
+        self.show_results(f"ИГРОК {self.logic.current_player} СДАЛСЯ!\nПОБЕДА ИГРОКА {winner}")
 
     def check_game_over(self):
-        # Проверка победы (у кого-то закончились костяшки)
         for p in [1, 2]:
             if not self.logic.hands[p]:
-                loser_score = self.logic.calculate_score(2 if p == 1 else 1)
-                self.show_results(f"ПОБЕДА ИГРОКА {p}!\nОЧКИ ПРОИГРАВШЕГО: {loser_score}")
+                score = self.logic.calculate_score(2 if p == 1 else 1)
+                self.show_results(f"ПОБЕДА ИГРОКА {p}!\nОЧКИ ПРОИГРАВШЕГО: {score}")
                 return
 
-        # Проверка "Рыбы"
         if not self.logic.bazaar:
             can_p1 = any(self.logic.is_valid_move(t) for t in self.logic.hands[1])
             can_p2 = any(self.logic.is_valid_move(t) for t in self.logic.hands[2])
             if not can_p1 and not can_p2:
-                s1 = self.logic.calculate_score(1)
-                s2 = self.logic.calculate_score(2)
-                result = f"РЫБА!\nИГРОК 1: {s1} | ИГРОК 2: {s2}\n"
-                if s1 < s2:
-                    result += "ПОБЕДА ИГРОКА 1"
-                elif s2 < s1:
-                    result += "ПОБЕДА ИГРОКА 2"
-                else:
-                    result += "НИЧЬЯ"
-                self.show_results(result)
+                s1, s2 = self.logic.calculate_score(1), self.logic.calculate_score(2)
+                res = f"РЫБА!\nИГРОК 1: {s1} | ИГРОК 2: {s2}\n"
+                res += "ПОБЕДА ИГРОКА 1" if s1 < s2 else "ПОБЕДА ИГРОКА 2" if s2 < s1 else "НИЧЬЯ"
+                self.show_results(res)
 
     def show_results(self, text):
         self.res_lbl.setText(text)
