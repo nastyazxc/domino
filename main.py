@@ -225,7 +225,7 @@ class DominoApp(QMainWindow):
             border-radius: 10px; 
             color: #000;
         """)
-        btn_home.clicked.connect(lambda: self.stacked.setCurrentIndex(0))
+        btn_home.clicked.connect(self.return_to_menu)
         
         self.opp_lbl = QLabel()
         self.baz_lbl = QLabel()
@@ -292,6 +292,18 @@ class DominoApp(QMainWindow):
         self.update_ui()
         self.stacked.setCurrentIndex(2)
 
+    def return_to_menu(self):
+        """Возврат в меню с подтверждением"""
+        reply = QMessageBox.question(
+            self, 
+            "Выход в меню", 
+            "Вы уверены, что хотите вернуться в главное меню?\nТекущая игра будет потеряна.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            self.stacked.setCurrentIndex(0)
+
     def update_ui(self):
         for l in [self.board_l, self.hand_l]:
             while l.count():
@@ -304,13 +316,11 @@ class DominoApp(QMainWindow):
         p = self.logic.current_player
         self.turn_lbl.setText(f"ХОД ИГРОКА {p}")
         
-        # Показываем руку текущего игрока
         for t in self.logic.hands[p]:
             btn = self.create_tile_btn(t, enabled=self.logic.is_valid_move(t))
             btn.clicked.connect(lambda ch, x=t: self.play_action(x))
             self.hand_l.addWidget(btn)
         
-        # Если у игрока нет ходов, автоматически берём из базара или передаём ход
         if not self.logic.can_any_move(p):
             QTimer.singleShot(500, self.auto_handle_no_moves)
 
@@ -320,17 +330,14 @@ class DominoApp(QMainWindow):
         self.check_game_over()
 
     def auto_handle_no_moves(self):
-        """Автоматически обрабатывает ситуацию, когда у игрока нет ходов"""
         p = self.logic.current_player
         if not self.logic.can_any_move(p):
             if self.logic.bazaar:
-                # Берём из базара
                 new_tile = self.logic.bazaar.pop(0)
                 self.logic.hands[p].append(new_tile)
                 self.update_ui()
                 QMessageBox.information(self, "Базар", f"У вас не было ходов.\nВзята костяшка {new_tile[0]}-{new_tile[1]}")
             else:
-                # Базар пуст, передаём ход
                 QMessageBox.information(self, "Нет ходов", "У вас нет подходящих костяшек и базар пуст.\nХод переходит сопернику.")
                 self.logic.current_player = 2 if p == 1 else 1
                 self.show_transfer_screen()
@@ -375,32 +382,42 @@ class DominoApp(QMainWindow):
     def draw_bazaar(self):
         current_player = self.logic.current_player
         
-        # Проверка 1: есть ли у игрока ходы
         if self.logic.can_any_move(current_player):
             QMessageBox.information(self, "Внимание", "У вас есть подходящие фишки! Брать из базара не требуется.")
             return
         
-        # Проверка 2: есть ли костяшки в базаре
         if not self.logic.bazaar:
             QMessageBox.information(self, "Базар", "Базар пуст! Ход переходит сопернику.")
             self.logic.current_player = 2 if current_player == 1 else 1
             self.show_transfer_screen()
             return
         
-        # Берём костяшку из базара
         new_tile = self.logic.bazaar.pop(0)
         self.logic.hands[current_player].append(new_tile)
         self.update_ui()
         
-        # Проверка 3: можно ли теперь сходить
         if self.logic.can_any_move(current_player):
             QMessageBox.information(self, "Базар", f"Вы взяли костяшку {new_tile[0]}-{new_tile[1]}\nТеперь можно ходить!")
         else:
             QMessageBox.information(self, "Базар", f"Вы взяли костяшку {new_tile[0]}-{new_tile[1]}\nНо ходить всё равно нечем.")
 
     def surrender_action(self):
-        winner = 2 if self.logic.current_player == 1 else 1
-        self.show_results(f"ИГРОК {self.logic.current_player} СДАЛСЯ!\nПОБЕДА ИГРОКА {winner}")
+        """Обработка сдачи с подтверждением"""
+        current_player = self.logic.current_player
+        opponent = 2 if current_player == 1 else 1
+        
+        reply = QMessageBox.question(
+            self,
+            "Сдача",
+            f"Игрок {current_player}, вы уверены, что хотите сдаться?\nПобеда будет присуждена игроку {opponent}.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            winner = opponent
+            loser_score = self.logic.calculate_score(current_player)
+            self.show_results(f"ИГРОК {current_player} СДАЛСЯ!\nПОБЕДА ИГРОКА {winner}\nОЧКИ ПРОИГРАВШЕГО: {loser_score}")
 
     def check_game_over(self):
         for p in [1, 2]:
@@ -415,7 +432,12 @@ class DominoApp(QMainWindow):
             if not can_p1 and not can_p2:
                 s1, s2 = self.logic.calculate_score(1), self.logic.calculate_score(2)
                 res = f"РЫБА!\nИГРОК 1: {s1} | ИГРОК 2: {s2}\n"
-                res += "ПОБЕДА ИГРОКА 1" if s1 < s2 else "ПОБЕДА ИГРОКА 2" if s2 < s1 else "НИЧЬЯ"
+                if s1 < s2:
+                    res += "ПОБЕДА ИГРОКА 1"
+                elif s2 < s1:
+                    res += "ПОБЕДА ИГРОКА 2"
+                else:
+                    res += "НИЧЬЯ"
                 self.show_results(res)
 
     def show_results(self, text):
