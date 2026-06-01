@@ -272,14 +272,17 @@ class DominoApp(QMainWindow):
         self.stacked.setCurrentIndex(2)
 
     def update_ui(self):
+        # Очищаем доску и руку
         for l in [self.board_l, self.hand_l]:
             while l.count():
                 w = l.takeAt(0).widget()
                 if w: w.deleteLater()
 
+        # Отображаем доску
         for tile in self.logic.board:
             self.board_l.addWidget(self.create_tile_btn(tile, enabled=False, horizontal=True))
 
+        # Отображаем руку текущего игрока
         p = self.logic.current_player
         self.turn_lbl.setText(f"ХОД ИГРОКА {p}")
         for t in self.logic.hands[p]:
@@ -287,15 +290,17 @@ class DominoApp(QMainWindow):
             btn.clicked.connect(lambda ch, x=t: self.play_action(x))
             self.hand_l.addWidget(btn)
 
+        # Обновляем информацию о сопернике и базаре
         opp = 2 if p == 1 else 1
         self.opp_lbl.setText(f"У СОПЕРНИКА: {len(self.logic.hands[opp])}")
         self.baz_lbl.setText(f"БАЗАР: {len(self.logic.bazaar)}")
+        
+        # Проверяем окончание игры
         self.check_game_over()
 
     def create_tile_btn(self, tile, enabled=True, horizontal=False):
         is_double = (tile[0] == tile[1])
         
-        # Дубли всегда рисуем вертикально (поперек)
         if is_double:
             text = f"{tile[0]}\n—\n{tile[1]}"
             btn = QPushButton(text)
@@ -317,28 +322,29 @@ class DominoApp(QMainWindow):
         return btn
 
     def play_action(self, tile):
+        # Делаем ход
         self.logic.make_move(tile, self.logic.current_player)
-        self.show_transfer_screen()
-
-    def show_transfer_screen(self):
-        # Временно: просто обновляем UI (позже будет экран передачи)
+        # Обновляем интерфейс (ход переключится внутри make_move)
         self.update_ui()
 
     def draw_bazaar(self):
         # Заглушка
-        pass
+        QMessageBox.information(self, "В разработке", "Функция взятия из базара будет добавлена позже")
 
     def surrender_action(self):
         # Заглушка
-        pass
+        winner = 2 if self.logic.current_player == 1 else 1
+        self.show_results(f"ИГРОК {self.logic.current_player} СДАЛСЯ!\nПОБЕДА ИГРОКА {winner}")
 
     def check_game_over(self):
+        # Проверка на победу (у игрока 0 костяшек)
         for p in [1, 2]:
             if not self.logic.hands[p]:
                 score = self.logic.calculate_score(2 if p == 1 else 1)
                 self.show_results(f"ПОБЕДА ИГРОКА {p}!\nОЧКИ ПРОИГРАВШЕГО: {score}")
                 return
 
+        # Проверка на "Рыбу"
         if not self.logic.bazaar:
             can_p1 = any(self.logic.is_valid_move(t) for t in self.logic.hands[1])
             can_p2 = any(self.logic.is_valid_move(t) for t in self.logic.hands[2])
