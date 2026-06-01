@@ -46,6 +46,10 @@ class DominoLogic:
         l, r = self.board[0][0], self.board[-1][1]
         return tile[0] in (l, r) or tile[1] in (l, r)
 
+    def can_any_move(self, player):
+        """Проверяет, может ли игрок сделать хотя бы один ход"""
+        return any(self.is_valid_move(tile) for tile in self.hands[player])
+
     def make_move(self, tile, player):
         if not self.board:
             self.board.append(tile)
@@ -299,15 +303,37 @@ class DominoApp(QMainWindow):
 
         p = self.logic.current_player
         self.turn_lbl.setText(f"ХОД ИГРОКА {p}")
+        
+        # Показываем руку текущего игрока
         for t in self.logic.hands[p]:
             btn = self.create_tile_btn(t, enabled=self.logic.is_valid_move(t))
             btn.clicked.connect(lambda ch, x=t: self.play_action(x))
             self.hand_l.addWidget(btn)
+        
+        # Если у игрока нет ходов, автоматически берём из базара или передаём ход
+        if not self.logic.can_any_move(p):
+            QTimer.singleShot(500, self.auto_handle_no_moves)
 
         opp = 2 if p == 1 else 1
         self.opp_lbl.setText(f"У СОПЕРНИКА: {len(self.logic.hands[opp])}")
         self.baz_lbl.setText(f"БАЗАР: {len(self.logic.bazaar)}")
         self.check_game_over()
+
+    def auto_handle_no_moves(self):
+        """Автоматически обрабатывает ситуацию, когда у игрока нет ходов"""
+        p = self.logic.current_player
+        if not self.logic.can_any_move(p):
+            if self.logic.bazaar:
+                # Берём из базара
+                new_tile = self.logic.bazaar.pop(0)
+                self.logic.hands[p].append(new_tile)
+                self.update_ui()
+                QMessageBox.information(self, "Базар", f"У вас не было ходов.\nВзята костяшка {new_tile[0]}-{new_tile[1]}")
+            else:
+                # Базар пуст, передаём ход
+                QMessageBox.information(self, "Нет ходов", "У вас нет подходящих костяшек и базар пуст.\nХод переходит сопернику.")
+                self.logic.current_player = 2 if p == 1 else 1
+                self.show_transfer_screen()
 
     def create_tile_btn(self, tile, enabled=True, horizontal=False):
         is_double = (tile[0] == tile[1])
@@ -347,32 +373,30 @@ class DominoApp(QMainWindow):
         self.stacked.setCurrentIndex(2)
 
     def draw_bazaar(self):
-        # Проверяем, есть ли у игрока подходящие костяшки для хода
-        current_hand = self.logic.hands[self.logic.current_player]
-        can_move = any(self.logic.is_valid_move(tile) for tile in current_hand)
+        current_player = self.logic.current_player
         
-        # Если есть чем ходить, не даём брать из базара
-        if can_move:
+        # Проверка 1: есть ли у игрока ходы
+        if self.logic.can_any_move(current_player):
             QMessageBox.information(self, "Внимание", "У вас есть подходящие фишки! Брать из базара не требуется.")
             return
         
-        # Если ходить нечем, берём из базара
-        if self.logic.bazaar:
-            # Берём первую костяшку из базара
-            new_tile = self.logic.bazaar.pop(0)
-            self.logic.hands[self.logic.current_player].append(new_tile)
-            self.update_ui()
-            
-            # Проверяем, можно ли теперь сходить
-            if any(self.logic.is_valid_move(t) for t in self.logic.hands[self.logic.current_player]):
-                QMessageBox.information(self, "Базар", f"Вы взяли костяшку {new_tile[0]}-{new_tile[1]}. Теперь можно ходить!")
-            else:
-                QMessageBox.information(self, "Базар", f"Вы взяли костяшку {new_tile[0]}-{new_tile[1]}, но ходить всё равно нечем.")
-        else:
-            # Если базар пуст, ход переходит другому игроку
+        # Проверка 2: есть ли костяшки в базаре
+        if not self.logic.bazaar:
             QMessageBox.information(self, "Базар", "Базар пуст! Ход переходит сопернику.")
-            self.logic.current_player = 2 if self.logic.current_player == 1 else 1
+            self.logic.current_player = 2 if current_player == 1 else 1
             self.show_transfer_screen()
+            return
+        
+        # Берём костяшку из базара
+        new_tile = self.logic.bazaar.pop(0)
+        self.logic.hands[current_player].append(new_tile)
+        self.update_ui()
+        
+        # Проверка 3: можно ли теперь сходить
+        if self.logic.can_any_move(current_player):
+            QMessageBox.information(self, "Базар", f"Вы взяли костяшку {new_tile[0]}-{new_tile[1]}\nТеперь можно ходить!")
+        else:
+            QMessageBox.information(self, "Базар", f"Вы взяли костяшку {new_tile[0]}-{new_tile[1]}\nНо ходить всё равно нечем.")
 
     def surrender_action(self):
         winner = 2 if self.logic.current_player == 1 else 1
@@ -386,8 +410,8 @@ class DominoApp(QMainWindow):
                 return
 
         if not self.logic.bazaar:
-            can_p1 = any(self.logic.is_valid_move(t) for t in self.logic.hands[1])
-            can_p2 = any(self.logic.is_valid_move(t) for t in self.logic.hands[2])
+            can_p1 = self.logic.can_any_move(1)
+            can_p2 = self.logic.can_any_move(2)
             if not can_p1 and not can_p2:
                 s1, s2 = self.logic.calculate_score(1), self.logic.calculate_score(2)
                 res = f"РЫБА!\nИГРОК 1: {s1} | ИГРОК 2: {s2}\n"
