@@ -63,7 +63,6 @@ class DominoLogic:
         return sum(sum(tile) for tile in self.hands[player])
 
 # --- СТИЛИЗАЦИЯ ---
-# Здесь мы устанавливаем цвет текста (color) в #000 (черный)
 TILE_STYLE = """
 QPushButton {
     background-color: #fdfdfd;
@@ -114,14 +113,15 @@ class DominoApp(QMainWindow):
         self.wait_lbl.setStyleSheet("color: white;")
         self.wait_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
-        self.timer_lbl = QLabel("Ожидание: 5 сек")
-        self.timer_lbl.setFont(QFont("Arial", 20))
-        self.timer_lbl.setStyleSheet("color: #f1c40f;")
-        self.timer_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # Убираем отображение таймера
+        # self.timer_lbl = QLabel("Ожидание: 5 сек")
+        # self.timer_lbl.setFont(QFont("Arial", 20))
+        # self.timer_lbl.setStyleSheet("color: #f1c40f;")
+        # self.timer_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         layout.addStretch()
         layout.addWidget(self.wait_lbl)
-        layout.addWidget(self.timer_lbl)
+        # layout.addWidget(self.timer_lbl)  # Закомментировано
         layout.addStretch()
         
         self.stacked.addWidget(self.overlay_widget)
@@ -154,11 +154,9 @@ class DominoApp(QMainWindow):
         widget = QWidget()
         widget.setStyleSheet("background-color: rgb(255,238,140);")
         
-        # Создаем центральный layout
         layout = QVBoxLayout(widget)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
-        # Заголовок
         title = QLabel("ПРАВИЛА ИГРЫ")
         title.setFont(QFont("Arial", 36, QFont.Weight.Bold))
         title.setStyleSheet("color: #000; margin-bottom: 40px;")
@@ -181,7 +179,6 @@ class DominoApp(QMainWindow):
         rules_text.setWordWrap(True)
         rules_text.setAlignment(Qt.AlignmentFlag.AlignCenter)  
         
-        # Кнопка "НАЗАД"
         btn = QPushButton("НАЗАД")
         btn.setFixedSize(200, 60)
         btn.setFont(QFont("Arial", 14, QFont.Weight.Bold))
@@ -198,14 +195,13 @@ class DominoApp(QMainWindow):
         """)
         btn.clicked.connect(lambda: self.stacked.setCurrentIndex(0))
         
-        # Добавляем все элементы 
         layout.addStretch()
         layout.addWidget(title)
-        layout.addSpacing(30)  # Отступ после заголовка
+        layout.addSpacing(30)
         layout.addWidget(rules_text)
-        layout.addSpacing(30)  # Отступ перед кнопкой
+        layout.addSpacing(30)
         layout.addWidget(btn, alignment=Qt.AlignmentFlag.AlignCenter)
-        layout.addStretch()  
+        layout.addStretch()
         
         self.stacked.addWidget(widget)
         
@@ -314,7 +310,6 @@ class DominoApp(QMainWindow):
     def create_tile_btn(self, tile, enabled=True, horizontal=False):
         is_double = (tile[0] == tile[1])
         
-        # Дубли всегда рисуем вертикально (поперек)
         if is_double:
             text = f"{tile[0]}\n—\n{tile[1]}"
             btn = QPushButton(text)
@@ -343,28 +338,24 @@ class DominoApp(QMainWindow):
         next_player = self.logic.current_player
         self.wait_lbl.setText(f"ХОД\nИГРОКА {next_player}")
         self.stacked.setCurrentIndex(4)
-        QTimer.singleShot(5000, self.finish_transfer)
+        QTimer.singleShot(3000, self.finish_transfer)  # Изменено с 5000 на 3000 (3 секунды)
 
     def finish_transfer(self):
         self.update_ui()
         self.stacked.setCurrentIndex(2)
 
     def draw_bazaar(self):
-        # 1. Проверяем, есть ли у игрока костяшки, которыми можно сходить
         current_hand = self.logic.hands[self.logic.current_player]
         can_move = any(self.logic.is_valid_move(tile) for tile in current_hand)
 
         if can_move:
-            # Если есть чем ходить, выводим предупреждение и прерываем выполнение
             QMessageBox.information(self, "Внимание", "У вас есть подходящие фишки! Брать из базара не требуется.")
             return
 
-        # 2. Если ходить действительно нечем, работаем с базаром
         if self.logic.bazaar:
             self.logic.hands[self.logic.current_player].append(self.logic.bazaar.pop(0))
             self.update_ui()
         else:
-            # Если базара нет, ход переходит другому игроку
             self.logic.current_player = 2 if self.logic.current_player == 1 else 1
             self.show_transfer_screen()
 
