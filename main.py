@@ -340,14 +340,39 @@ class DominoApp(QMainWindow):
         next_player = self.logic.current_player
         self.wait_lbl.setText(f"ХОД\nИГРОКА {next_player}")
         self.stacked.setCurrentIndex(4)
-        QTimer.singleShot(3000, self.finish_transfer)  # 3 секунды
+        QTimer.singleShot(3000, self.finish_transfer)
 
     def finish_transfer(self):
         self.update_ui()
         self.stacked.setCurrentIndex(2)
 
     def draw_bazaar(self):
-        QMessageBox.information(self, "В разработке", "Функция взятия из базара будет добавлена в следующем коммите")
+        # Проверяем, есть ли у игрока подходящие костяшки для хода
+        current_hand = self.logic.hands[self.logic.current_player]
+        can_move = any(self.logic.is_valid_move(tile) for tile in current_hand)
+        
+        # Если есть чем ходить, не даём брать из базара
+        if can_move:
+            QMessageBox.information(self, "Внимание", "У вас есть подходящие фишки! Брать из базара не требуется.")
+            return
+        
+        # Если ходить нечем, берём из базара
+        if self.logic.bazaar:
+            # Берём первую костяшку из базара
+            new_tile = self.logic.bazaar.pop(0)
+            self.logic.hands[self.logic.current_player].append(new_tile)
+            self.update_ui()
+            
+            # Проверяем, можно ли теперь сходить
+            if any(self.logic.is_valid_move(t) for t in self.logic.hands[self.logic.current_player]):
+                QMessageBox.information(self, "Базар", f"Вы взяли костяшку {new_tile[0]}-{new_tile[1]}. Теперь можно ходить!")
+            else:
+                QMessageBox.information(self, "Базар", f"Вы взяли костяшку {new_tile[0]}-{new_tile[1]}, но ходить всё равно нечем.")
+        else:
+            # Если базар пуст, ход переходит другому игроку
+            QMessageBox.information(self, "Базар", "Базар пуст! Ход переходит сопернику.")
+            self.logic.current_player = 2 if self.logic.current_player == 1 else 1
+            self.show_transfer_screen()
 
     def surrender_action(self):
         winner = 2 if self.logic.current_player == 1 else 1
