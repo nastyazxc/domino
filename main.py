@@ -60,6 +60,7 @@ class DominoLogic:
             elif tile[1] == r:
                 self.board.append((tile[1], tile[0]))
         self.hands[player].remove(tile)
+        # Переключение хода на другого игрока
         self.current_player = 2 if player == 1 else 1
 
     def calculate_score(self, player):
@@ -282,20 +283,23 @@ class DominoApp(QMainWindow):
         for tile in self.logic.board:
             self.board_l.addWidget(self.create_tile_btn(tile, enabled=False, horizontal=True))
 
-        # Отображаем руку текущего игрока
-        p = self.logic.current_player
-        self.turn_lbl.setText(f"ХОД ИГРОКА {p}")
-        for t in self.logic.hands[p]:
-            btn = self.create_tile_btn(t, enabled=self.logic.is_valid_move(t))
-            btn.clicked.connect(lambda ch, x=t: self.play_action(x))
+        # Отображаем руку ТЕКУЩЕГО игрока
+        current = self.logic.current_player
+        self.turn_lbl.setText(f"ХОД ИГРОКА {current}")
+        
+        for tile in self.logic.hands[current]:
+            # Проверяем, может ли игрок сходить этой костяшкой
+            can_move = self.logic.is_valid_move(tile)
+            btn = self.create_tile_btn(tile, enabled=can_move)
+            btn.clicked.connect(lambda ch, x=tile: self.play_action(x))
             self.hand_l.addWidget(btn)
 
-        # Обновляем информацию о сопернике и базаре
-        opp = 2 if p == 1 else 1
-        self.opp_lbl.setText(f"У СОПЕРНИКА: {len(self.logic.hands[opp])}")
+        # Информация о сопернике и базаре
+        opponent = 2 if current == 1 else 1
+        self.opp_lbl.setText(f"У СОПЕРНИКА: {len(self.logic.hands[opponent])}")
         self.baz_lbl.setText(f"БАЗАР: {len(self.logic.bazaar)}")
         
-        # Проверяем окончание игры
+        # Проверяем, не закончилась ли игра
         self.check_game_over()
 
     def create_tile_btn(self, tile, enabled=True, horizontal=False):
@@ -322,37 +326,45 @@ class DominoApp(QMainWindow):
         return btn
 
     def play_action(self, tile):
-        # Делаем ход
-        self.logic.make_move(tile, self.logic.current_player)
-        # Обновляем интерфейс (ход переключится внутри make_move)
+        # Делаем ход текущим игроком
+        current_player = self.logic.current_player
+        self.logic.make_move(tile, current_player)
+        # Обновляем интерфейс (ход уже переключился внутри make_move)
         self.update_ui()
 
     def draw_bazaar(self):
-        # Заглушка
-        QMessageBox.information(self, "В разработке", "Функция взятия из базара будет добавлена позже")
+        # Заглушка (будет реализовано позже)
+        QMessageBox.information(self, "В разработке", "Функция взятия из базара будет добавлена в следующем коммите")
 
     def surrender_action(self):
-        # Заглушка
-        winner = 2 if self.logic.current_player == 1 else 1
-        self.show_results(f"ИГРОК {self.logic.current_player} СДАЛСЯ!\nПОБЕДА ИГРОКА {winner}")
+        # Обработка сдачи
+        current = self.logic.current_player
+        winner = 2 if current == 1 else 1
+        self.show_results(f"ИГРОК {current} СДАЛСЯ!\nПОБЕДА ИГРОКА {winner}")
 
     def check_game_over(self):
-        # Проверка на победу (у игрока 0 костяшек)
+        # Проверка победы (у кого-то закончились костяшки)
         for p in [1, 2]:
             if not self.logic.hands[p]:
-                score = self.logic.calculate_score(2 if p == 1 else 1)
-                self.show_results(f"ПОБЕДА ИГРОКА {p}!\nОЧКИ ПРОИГРАВШЕГО: {score}")
+                loser_score = self.logic.calculate_score(2 if p == 1 else 1)
+                self.show_results(f"ПОБЕДА ИГРОКА {p}!\nОЧКИ ПРОИГРАВШЕГО: {loser_score}")
                 return
 
-        # Проверка на "Рыбу"
+        # Проверка "Рыбы"
         if not self.logic.bazaar:
             can_p1 = any(self.logic.is_valid_move(t) for t in self.logic.hands[1])
             can_p2 = any(self.logic.is_valid_move(t) for t in self.logic.hands[2])
             if not can_p1 and not can_p2:
-                s1, s2 = self.logic.calculate_score(1), self.logic.calculate_score(2)
-                res = f"РЫБА!\nИГРОК 1: {s1} | ИГРОК 2: {s2}\n"
-                res += "ПОБЕДА ИГРОКА 1" if s1 < s2 else "ПОБЕДА ИГРОКА 2" if s2 < s1 else "НИЧЬЯ"
-                self.show_results(res)
+                s1 = self.logic.calculate_score(1)
+                s2 = self.logic.calculate_score(2)
+                result = f"РЫБА!\nИГРОК 1: {s1} | ИГРОК 2: {s2}\n"
+                if s1 < s2:
+                    result += "ПОБЕДА ИГРОКА 1"
+                elif s2 < s1:
+                    result += "ПОБЕДА ИГРОКА 2"
+                else:
+                    result += "НИЧЬЯ"
+                self.show_results(result)
 
     def show_results(self, text):
         self.res_lbl.setText(text)
