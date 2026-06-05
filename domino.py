@@ -112,16 +112,9 @@ class DominoApp(QMainWindow):
         self.wait_lbl.setFont(QFont("Arial", 40, QFont.Weight.Bold))
         self.wait_lbl.setStyleSheet("color: white;")
         self.wait_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        
-        # Убираем отображение таймера
-        # self.timer_lbl = QLabel("Ожидание: 5 сек")
-        # self.timer_lbl.setFont(QFont("Arial", 20))
-        # self.timer_lbl.setStyleSheet("color: #f1c40f;")
-        # self.timer_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         layout.addStretch()
         layout.addWidget(self.wait_lbl)
-        # layout.addWidget(self.timer_lbl)  # Закомментировано
         layout.addStretch()
         
         self.stacked.addWidget(self.overlay_widget)
@@ -338,7 +331,7 @@ class DominoApp(QMainWindow):
         next_player = self.logic.current_player
         self.wait_lbl.setText(f"ХОД\nИГРОКА {next_player}")
         self.stacked.setCurrentIndex(4)
-        QTimer.singleShot(3000, self.finish_transfer)  # Изменено с 5000 на 3000 (3 секунды)
+        QTimer.singleShot(3000, self.finish_transfer) 
 
     def finish_transfer(self):
         self.update_ui()
