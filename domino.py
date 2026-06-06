@@ -129,7 +129,7 @@ class DominoApp(QMainWindow):
         self.setWindowTitle('Домино')
         self.setStyleSheet("QMainWindow { background-color: rgb(255,238,140); }")
         self.setGeometry(300, 300, 800, 600)
-        self.setFixedSize(1540, 900)
+        self.setFixedSize(1540, 890)
 
     def init_overlay_screen(self):
         self.overlay_widget = QWidget()
@@ -370,6 +370,11 @@ class DominoApp(QMainWindow):
         self.show_results(f"ИГРОК {self.logic.current_player} СДАЛСЯ!\nПОБЕДА ИГРОКА {winner}")
 
     def check_game_over(self):
+        # Проверка, что у обоих игроков нет фишек
+        if not self.logic.hands[1] and not self.logic.hands[2]:
+        # Оба игрока выложили все фишки - ничья
+            self.show_results("НИЧЬЯ!\nУ обоих игроков закончились фишки")
+            return
         for p in [1, 2]:
             if not self.logic.hands[p]:
                 score = self.logic.calculate_score(2 if p == 1 else 1)
