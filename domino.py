@@ -6,7 +6,6 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont
 
-# --- ЛОГИКА ИГРЫ ---
 class DominoLogic:
     def __init__(self):
         self.reset_game()
@@ -62,7 +61,7 @@ class DominoLogic:
     def calculate_score(self, player):
         return sum(sum(tile) for tile in self.hands[player])
 
-# --- СТИЛИЗАЦИЯ ---
+# СТИЛИЗАЦИЯ
 TILE_STYLE = """
 QPushButton {
     background-color: #fdfdfd;
@@ -82,7 +81,35 @@ QPushButton:hover:enabled {
 }
 """
 
-# --- ИНТЕРФЕЙС ---
+# Стиль для всех кнопок
+BUTTON_STYLE = """
+QPushButton {
+    background-color: #fdfdfd;
+    border: 2px solid #333;
+    border-radius: 10px;
+    color: #000;
+    font-weight: bold;
+}
+QPushButton:hover {
+    background-color: #e0e0e0;
+}
+"""
+
+# Стиль для красных кнопок
+RED_BUTTON_STYLE = """
+QPushButton {
+    background-color: #c0392b;
+    border: 2px solid #333;
+    border-radius: 5px;
+    color: white;
+    font-weight: bold;
+}
+QPushButton:hover {
+    background-color: #a93226;
+}
+"""
+
+# ИНТЕРФЕЙС
 class DominoApp(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -102,6 +129,7 @@ class DominoApp(QMainWindow):
         self.setWindowTitle('Домино')
         self.setStyleSheet("QMainWindow { background-color: rgb(255,238,140); }")
         self.setGeometry(300, 300, 800, 600)
+        self.setFixedSize(1540, 900)
 
     def init_overlay_screen(self):
         self.overlay_widget = QWidget()
@@ -131,8 +159,8 @@ class DominoApp(QMainWindow):
         for txt in ["ИГРАТЬ", "ПРАВИЛА", "ВЫХОД"]:
             btn = QPushButton(txt)
             btn.setFixedSize(400, 80)
-            btn.setFont(QFont("Arial", 22))
-            btn.setStyleSheet("background-color: #fdfdfd; border: 1px solid #333; border-radius: 10px; color: #000;")
+            btn.setFont(QFont("Arial", 22, QFont.Weight.Bold))
+            btn.setStyleSheet(BUTTON_STYLE)
             if txt == "ИГРАТЬ":
                 btn.clicked.connect(self.start_new_game)
             elif txt == "ПРАВИЛА":
@@ -175,17 +203,7 @@ class DominoApp(QMainWindow):
         btn = QPushButton("НАЗАД")
         btn.setFixedSize(200, 60)
         btn.setFont(QFont("Arial", 14, QFont.Weight.Bold))
-        btn.setStyleSheet("""
-            QPushButton {
-                background-color: #fdfdfd;
-                border: 2px solid #333;
-                border-radius: 10px;
-                color: #000;
-            }
-            QPushButton:hover {
-                background-color: #e0e0e0;
-            }
-        """)
+        btn.setStyleSheet(BUTTON_STYLE)
         btn.clicked.connect(lambda: self.stacked.setCurrentIndex(0))
         
         layout.addStretch()
@@ -206,12 +224,7 @@ class DominoApp(QMainWindow):
         btn_home = QPushButton("ВЕРНУТЬСЯ В МЕНЮ") 
         btn_home.setFixedSize(250, 60)
         btn_home.setFont(QFont("Arial", 14, QFont.Weight.Bold))
-        btn_home.setStyleSheet("""
-            background-color: #fdfdfd; 
-            border: 2px solid #333; 
-            border-radius: 10px; 
-            color: #000;
-        """)
+        btn_home.setStyleSheet(BUTTON_STYLE)
         btn_home.clicked.connect(lambda: self.stacked.setCurrentIndex(0))
         
         self.opp_lbl = QLabel()
@@ -247,7 +260,7 @@ class DominoApp(QMainWindow):
         for b in [btn_baz, btn_sur]:
             b.setFixedSize(250, 60)
             b.setFont(QFont("Arial", 14, QFont.Weight.Bold))
-            b.setStyleSheet("background-color: #c0392b; color: white; border-radius: 5px;")
+            b.setStyleSheet(RED_BUTTON_STYLE)
         
         btn_baz.clicked.connect(self.draw_bazaar)
         btn_sur.clicked.connect(self.surrender_action)
@@ -267,7 +280,7 @@ class DominoApp(QMainWindow):
         btn = QPushButton("В МЕНЮ")
         btn.setFixedSize(300, 70)
         btn.setFont(QFont("Arial", 14, QFont.Weight.Bold))
-        btn.setStyleSheet("border-radius: 10px;background-color: #fdfdfd; border: 1px solid #333; color: #000;")
+        btn.setStyleSheet(BUTTON_STYLE)
         btn.clicked.connect(lambda: self.stacked.setCurrentIndex(0))
         layout.addWidget(self.res_lbl, alignment=Qt.AlignmentFlag.AlignCenter)
         layout.addSpacing(40)
@@ -307,7 +320,7 @@ class DominoApp(QMainWindow):
             text = f"{tile[0]}\n—\n{tile[1]}"
             btn = QPushButton(text)
             btn.setFixedSize(55, 80)
-            btn.setFont(QFont("Arial", 14))
+            btn.setFont(QFont("Arial", 14, QFont.Weight.Bold))
         else:
             if horizontal:
                 text = f"{tile[0]} | {tile[1]}"
@@ -317,7 +330,7 @@ class DominoApp(QMainWindow):
                 text = f"{tile[0]}\n—\n{tile[1]}"
                 btn = QPushButton(text)
                 btn.setFixedSize(55, 80)
-            btn.setFont(QFont("Arial", 14))
+            btn.setFont(QFont("Arial", 14, QFont.Weight.Bold))
         
         btn.setEnabled(enabled)
         btn.setStyleSheet(TILE_STYLE)
@@ -331,7 +344,7 @@ class DominoApp(QMainWindow):
         next_player = self.logic.current_player
         self.wait_lbl.setText(f"ХОД\nИГРОКА {next_player}")
         self.stacked.setCurrentIndex(4)
-        QTimer.singleShot(3000, self.finish_transfer) 
+        QTimer.singleShot(3000, self.finish_transfer)
 
     def finish_transfer(self):
         self.update_ui()
