@@ -338,6 +338,14 @@ class DominoApp(QMainWindow):
 
     def play_action(self, tile):
         self.logic.make_move(tile, self.logic.current_player)
+        # Проверяем, не закончились ли фишки у текущего игрока после хода
+        if not self.logic.hands[self.logic.current_player]:
+        # У текущего игрока не осталось фишек - он победил
+            winner = self.logic.current_player
+            score = self.logic.calculate_score(2 if winner == 1 else 1)
+            self.show_results(f"ПОБЕДА ИГРОКА {winner}!\nОЧКИ ПРОИГРАВШЕГО: {score}")
+            return
+    
         self.show_transfer_screen()
 
     def show_transfer_screen(self):
@@ -370,17 +378,12 @@ class DominoApp(QMainWindow):
         self.show_results(f"ИГРОК {self.logic.current_player} СДАЛСЯ!\nПОБЕДА ИГРОКА {winner}")
 
     def check_game_over(self):
-        # Проверка, что у обоих игроков нет фишек
+        # Проверка на ничью
         if not self.logic.hands[1] and not self.logic.hands[2]:
-        # Оба игрока выложили все фишки - ничья
             self.show_results("НИЧЬЯ!\nУ обоих игроков закончились фишки")
-            return
-        for p in [1, 2]:
-            if not self.logic.hands[p]:
-                score = self.logic.calculate_score(2 if p == 1 else 1)
-                self.show_results(f"ПОБЕДА ИГРОКА {p}!\nОЧКИ ПРОИГРАВШЕГО: {score}")
-                return
-
+            return True
+    
+        # Проверка на рыбу
         if not self.logic.bazaar:
             can_p1 = any(self.logic.is_valid_move(t) for t in self.logic.hands[1])
             can_p2 = any(self.logic.is_valid_move(t) for t in self.logic.hands[2])
@@ -389,6 +392,8 @@ class DominoApp(QMainWindow):
                 res = f"РЫБА!\nИГРОК 1: {s1} | ИГРОК 2: {s2}\n"
                 res += "ПОБЕДА ИГРОКА 1" if s1 < s2 else "ПОБЕДА ИГРОКА 2" if s2 < s1 else "НИЧЬЯ"
                 self.show_results(res)
+                return True
+        return False
 
     def show_results(self, text):
         self.res_lbl.setText(text)
