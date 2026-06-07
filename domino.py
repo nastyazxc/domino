@@ -6,6 +6,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont
 
+# ЛОГИКА ИГРЫ
 class DominoLogic:
     def __init__(self):
         self.reset_game()
@@ -180,7 +181,7 @@ class DominoApp(QMainWindow):
         
         title = QLabel("ПРАВИЛА ИГРЫ")
         title.setFont(QFont("Arial", 36, QFont.Weight.Bold))
-        title.setStyleSheet("color: #000; margin-bottom: 40px;")
+        title.setStyleSheet("color: #000; margin-top: 50px; margin-bottom: 20px; background-color: transparent;")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         
         rules_text = QLabel(
@@ -196,9 +197,16 @@ class DominoApp(QMainWindow):
             "   выложил все костяшки или наступила 'рыба'"
         )
         rules_text.setFont(QFont("Arial", 16))
-        rules_text.setStyleSheet("color: #000; margin-bottom: 30px;")
+        rules_text.setStyleSheet("""
+            background-color: white;
+            border: 2px solid #333;
+            border-radius: 15px;
+            padding: 30px;
+            color: #000;
+        """)
         rules_text.setWordWrap(True)
-        rules_text.setAlignment(Qt.AlignmentFlag.AlignCenter)  
+        rules_text.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        rules_text.setFixedWidth(650)
         
         btn = QPushButton("НАЗАД")
         btn.setFixedSize(200, 60)
@@ -209,13 +217,13 @@ class DominoApp(QMainWindow):
         layout.addStretch()
         layout.addWidget(title)
         layout.addSpacing(30)
-        layout.addWidget(rules_text)
+        layout.addWidget(rules_text, alignment=Qt.AlignmentFlag.AlignCenter)
         layout.addSpacing(30)
         layout.addWidget(btn, alignment=Qt.AlignmentFlag.AlignCenter)
         layout.addStretch()
         
         self.stacked.addWidget(widget)
-        
+            
     def init_game_screen(self):
         self.game_widget = QWidget()
         main_l = QVBoxLayout(self.game_widget)
