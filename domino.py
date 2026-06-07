@@ -96,6 +96,7 @@ class DominoLogic:
     def calculate_score(self, player):
         return sum(sum(tile) for tile in self.hands[player])
 
+
 # СТИЛИЗАЦИЯ
 TILE_STYLE = """
 QPushButton {
@@ -141,6 +142,7 @@ QPushButton:hover {
     background-color: #a93226;
 }
 """
+
 
 # ИНТЕРФЕЙС
 class DominoApp(QMainWindow):
@@ -376,17 +378,14 @@ class DominoApp(QMainWindow):
         self.stacked.setCurrentIndex(2)
 
     def update_ui(self):
-        # Очистка доски
         while self.board_l.count():
             w = self.board_l.takeAt(0).widget()
             if w: w.deleteLater()
 
-        # Очистка руки
         while self.hand_l.count():
             w = self.hand_l.takeAt(0).widget()
             if w: w.deleteLater()
 
-        # Отображаем цепочку костяшек последовательно
         for i, tile in enumerate(self.logic.board):
             if i == 0:
                 btn = self.create_tile_btn(tile, enabled=False, horizontal=True)
@@ -433,6 +432,26 @@ class DominoApp(QMainWindow):
         btn.setStyleSheet(TILE_STYLE)
         return btn
 
+    def check_fish(self):
+        if self.logic.bazaar:
+            return False
+        
+        can_move_any = any(self.logic.is_valid_move(t) for t in self.logic.hands[1]) or \
+                       any(self.logic.is_valid_move(t) for t in self.logic.hands[2])
+        
+        if can_move_any:
+            return False
+        
+        # Рыба! Определяем победителя
+        s1, s2 = self.logic.calculate_score(1), self.logic.calculate_score(2)
+        if s1 < s2:
+            self.show_results(f"РЫБА!\nИГРОК 1: {s1} | ИГРОК 2: {s2}\nПОБЕДА ИГРОКА 1!")
+        elif s2 < s1:
+            self.show_results(f"РЫБА!\nИГРОК 1: {s1} | ИГРОК 2: {s2}\nПОБЕДА ИГРОКА 2!")
+        else:
+            self.show_results(f"РЫБА!\nИГРОК 1: {s1} | ИГРОК 2: {s2}\nНИЧЬЯ!")
+        return True
+
     def play_action(self, tile):
         player = self.logic.current_player
         
@@ -459,6 +478,9 @@ class DominoApp(QMainWindow):
             self.show_results(f"ПОБЕДА ИГРОКА {player}!\nОЧКИ ПРОИГРАВШЕГО: {score}")
             return
         
+        if self.check_fish():
+            return
+        
         self.show_transfer_screen()
 
     def show_transfer_screen(self):
@@ -468,6 +490,8 @@ class DominoApp(QMainWindow):
         QTimer.singleShot(3000, self.finish_transfer)
 
     def finish_transfer(self):
+        if self.check_fish():
+            return
         self.update_ui()
         self.stacked.setCurrentIndex(2)
 
@@ -483,6 +507,8 @@ class DominoApp(QMainWindow):
             self.logic.hands[self.logic.current_player].append(self.logic.bazaar.pop(0))
             self.update_ui()
         else:
+            if self.check_fish():
+                return
             self.logic.current_player = 2 if self.logic.current_player == 1 else 1
             self.show_transfer_screen()
 
@@ -494,21 +520,12 @@ class DominoApp(QMainWindow):
         if not self.logic.hands[1] and not self.logic.hands[2]:
             self.show_results("НИЧЬЯ!\nУ обоих игроков закончились фишки")
             return True
-    
-        if not self.logic.bazaar:
-            can_p1 = any(self.logic.is_valid_move(t) for t in self.logic.hands[1])
-            can_p2 = any(self.logic.is_valid_move(t) for t in self.logic.hands[2])
-            if not can_p1 and not can_p2:
-                s1, s2 = self.logic.calculate_score(1), self.logic.calculate_score(2)
-                res = f"РЫБА!\nИГРОК 1: {s1} | ИГРОК 2: {s2}\n"
-                res += "ПОБЕДА ИГРОКА 1" if s1 < s2 else "ПОБЕДА ИГРОКА 2" if s2 < s1 else "НИЧЬЯ"
-                self.show_results(res)
-                return True
         return False
 
     def show_results(self, text):
         self.res_lbl.setText(text)
         self.stacked.setCurrentIndex(3)
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
