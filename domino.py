@@ -2,7 +2,7 @@ import sys
 import random
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QHBoxLayout, QPushButton, QLabel, QStackedWidget,
-                             QMessageBox)
+                             QMessageBox, QGridLayout, QScrollArea)
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont
 
@@ -40,17 +40,19 @@ class DominoLogic:
 
     def is_valid_move(self, tile):
         if not self.board: return True
-        l, r = self.board[0][0], self.board[-1][1]
-        return tile[0] in (l, r) or tile[1] in (l, r)
+        left_end = self.board[0][0]
+        right_end = self.board[-1][1]
+        return tile[0] == left_end or tile[1] == left_end or tile[0] == right_end or tile[1] == right_end
 
     def get_valid_ends(self, tile):
         if not self.board:
             return []
         ends = []
-        l, r = self.board[0][0], self.board[-1][1]
-        if tile[0] == l or tile[1] == l:
+        left_end = self.board[0][0]
+        right_end = self.board[-1][1]
+        if tile[0] == left_end or tile[1] == left_end:
             ends.append('left')
-        if tile[0] == r or tile[1] == r:
+        if tile[0] == right_end or tile[1] == right_end:
             ends.append('right')
         return ends
 
@@ -58,31 +60,34 @@ class DominoLogic:
         if not self.board:
             self.board.append(tile)
         else:
-            l, r = self.board[0][0], self.board[-1][1]
-            if tile[1] == l:
+            left_end = self.board[0][0]
+            right_end = self.board[-1][1]
+            
+            if tile[1] == left_end:
                 self.board.insert(0, tile)
-            elif tile[0] == l:
+            elif tile[0] == left_end:
                 self.board.insert(0, (tile[1], tile[0]))
-            elif tile[0] == r:
+            elif tile[0] == right_end:
                 self.board.append(tile)
-            elif tile[1] == r:
+            elif tile[1] == right_end:
                 self.board.append((tile[1], tile[0]))
+        
         self.hands[player].remove(tile)
         self.current_player = 2 if player == 1 else 1
 
     def make_move_with_choice(self, tile, player, side):
-        """Ход с выбором стороны"""
-        l, r = self.board[0][0], self.board[-1][1]
+        left_end = self.board[0][0]
+        right_end = self.board[-1][1]
         
         if side == 'left':
-            if tile[1] == l:
+            if tile[1] == left_end:
                 self.board.insert(0, tile)
-            elif tile[0] == l:
+            elif tile[0] == left_end:
                 self.board.insert(0, (tile[1], tile[0]))
-        else:  # side == 'right'
-            if tile[0] == r:
+        else:
+            if tile[0] == right_end:
                 self.board.append(tile)
-            elif tile[1] == r:
+            elif tile[1] == right_end:
                 self.board.append((tile[1], tile[0]))
         
         self.hands[player].remove(tile)
@@ -111,7 +116,6 @@ QPushButton:hover:enabled {
 }
 """
 
-# Стиль для всех кнопок
 BUTTON_STYLE = """
 QPushButton {
     background-color: #fdfdfd;
@@ -125,7 +129,6 @@ QPushButton:hover {
 }
 """
 
-# Стиль для красных кнопок
 RED_BUTTON_STYLE = """
 QPushButton {
     background-color: #c0392b;
@@ -255,6 +258,7 @@ class DominoApp(QMainWindow):
             
     def init_game_screen(self):
         self.game_widget = QWidget()
+        self.game_widget.setStyleSheet("background-color: rgb(255,238,140);")
         main_l = QVBoxLayout(self.game_widget)
         info_l = QHBoxLayout()
 
@@ -276,10 +280,34 @@ class DominoApp(QMainWindow):
         info_l.addWidget(self.baz_lbl)
         main_l.addLayout(info_l)
 
-        self.board_area = QWidget()
-        self.board_l = QHBoxLayout(self.board_area)
+        self.board_scroll = QScrollArea()
+        self.board_scroll.setWidgetResizable(True)
+        self.board_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.board_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.board_scroll.setStyleSheet("""
+            QScrollArea {
+                border: none;
+                background-color: transparent;
+            }
+            QScrollBar:horizontal {
+                background-color: #e0b83e;
+                border: none;
+                height: 15px;
+            }
+            QScrollBar::handle:horizontal {
+                background-color: #c99c2e;
+                border-radius: 7px;
+                min-width: 50px;
+            }
+        """)
+        
+        self.board_container = QWidget()
+        self.board_container.setStyleSheet("background-color: transparent;")
+        self.board_l = QGridLayout(self.board_container)
         self.board_l.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        main_l.addWidget(self.board_area, 1)
+        self.board_l.setSpacing(5)
+        self.board_scroll.setWidget(self.board_container)
+        main_l.addWidget(self.board_scroll, 1)
 
         self.turn_lbl = QLabel()
         self.turn_lbl.setFont(QFont("Arial", 24, QFont.Weight.Bold))
@@ -287,6 +315,7 @@ class DominoApp(QMainWindow):
         main_l.addWidget(self.turn_lbl, alignment=Qt.AlignmentFlag.AlignCenter)
 
         self.hand_area = QWidget()
+        self.hand_area.setStyleSheet("background-color: transparent;")
         self.hand_l = QHBoxLayout(self.hand_area)
         self.hand_l.setAlignment(Qt.AlignmentFlag.AlignCenter)
         main_l.addWidget(self.hand_area)
@@ -347,13 +376,27 @@ class DominoApp(QMainWindow):
         self.stacked.setCurrentIndex(2)
 
     def update_ui(self):
-        for l in [self.board_l, self.hand_l]:
-            while l.count():
-                w = l.takeAt(0).widget()
-                if w: w.deleteLater()
+        # Очистка доски
+        while self.board_l.count():
+            w = self.board_l.takeAt(0).widget()
+            if w: w.deleteLater()
 
-        for tile in self.logic.board:
-            self.board_l.addWidget(self.create_tile_btn(tile, enabled=False, horizontal=True))
+        # Очистка руки
+        while self.hand_l.count():
+            w = self.hand_l.takeAt(0).widget()
+            if w: w.deleteLater()
+
+        # Отображаем цепочку костяшек последовательно
+        for i, tile in enumerate(self.logic.board):
+            if i == 0:
+                btn = self.create_tile_btn(tile, enabled=False, horizontal=True)
+            else:
+                prev_tile = self.logic.board[i-1]
+                if tile[0] == prev_tile[1]:
+                    btn = self.create_tile_btn(tile, enabled=False, horizontal=True)
+                else:
+                    btn = self.create_tile_btn((tile[1], tile[0]), enabled=False, horizontal=True)
+            self.board_l.addWidget(btn, 0, i, alignment=Qt.AlignmentFlag.AlignCenter)
 
         p = self.logic.current_player
         self.turn_lbl.setText(f"ХОД ИГРОКА {p}")
@@ -393,7 +436,6 @@ class DominoApp(QMainWindow):
     def play_action(self, tile):
         player = self.logic.current_player
         
-        # Проверяем, можно ли поставить с двух сторон
         ends = self.logic.get_valid_ends(tile)
         
         if len(ends) == 2:
@@ -410,7 +452,6 @@ class DominoApp(QMainWindow):
             else:
                 self.logic.make_move_with_choice(tile, player, 'right')
         else:
-            # Обычный ход
             self.logic.make_move(tile, player)
         
         if not self.logic.hands[player]:
@@ -450,12 +491,10 @@ class DominoApp(QMainWindow):
         self.show_results(f"ИГРОК {self.logic.current_player} СДАЛСЯ!\nПОБЕДА ИГРОКА {winner}")
 
     def check_game_over(self):
-        # Проверка на ничью
         if not self.logic.hands[1] and not self.logic.hands[2]:
             self.show_results("НИЧЬЯ!\nУ обоих игроков закончились фишки")
             return True
     
-        # Проверка на рыбу
         if not self.logic.bazaar:
             can_p1 = any(self.logic.is_valid_move(t) for t in self.logic.hands[1])
             can_p2 = any(self.logic.is_valid_move(t) for t in self.logic.hands[2])
