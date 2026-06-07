@@ -282,17 +282,34 @@ class DominoApp(QMainWindow):
     def init_end_screen(self):
         widget = QWidget()
         layout = QVBoxLayout(widget)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+        end_title = QLabel("КОНЕЦ ИГРЫ")
+        end_title.setFont(QFont("Arial", 48, QFont.Weight.Bold))
+        end_title.setStyleSheet("color: #333; margin-bottom: 40px;")
+        end_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
         self.res_lbl = QLabel()
-        self.res_lbl.setFont(QFont("Arial", 40, QFont.Weight.Bold))
-        self.res_lbl.setStyleSheet("color: #333;")
+        self.res_lbl.setFont(QFont("Arial", 28, QFont.Weight.Bold))
+        self.res_lbl.setStyleSheet("color: #333; margin-bottom: 30px;")
+        self.res_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.res_lbl.setWordWrap(True)
+        self.res_lbl.setMinimumWidth(600)
+        
         btn = QPushButton("В МЕНЮ")
-        btn.setFixedSize(300, 70)
-        btn.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+        btn.setFixedSize(350, 80)
+        btn.setFont(QFont("Arial", 18, QFont.Weight.Bold))
         btn.setStyleSheet(BUTTON_STYLE)
         btn.clicked.connect(lambda: self.stacked.setCurrentIndex(0))
-        layout.addWidget(self.res_lbl, alignment=Qt.AlignmentFlag.AlignCenter)
-        layout.addSpacing(40)
+        
+        layout.addStretch()
+        layout.addWidget(end_title)
+        layout.addSpacing(30)
+        layout.addWidget(self.res_lbl)
+        layout.addSpacing(50)
         layout.addWidget(btn, alignment=Qt.AlignmentFlag.AlignCenter)
+        layout.addStretch()
+        
         self.stacked.addWidget(widget)
 
     def start_new_game(self):
