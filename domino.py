@@ -43,6 +43,17 @@ class DominoLogic:
         l, r = self.board[0][0], self.board[-1][1]
         return tile[0] in (l, r) or tile[1] in (l, r)
 
+    def get_valid_ends(self, tile):
+        if not self.board:
+            return []
+        ends = []
+        l, r = self.board[0][0], self.board[-1][1]
+        if tile[0] == l or tile[1] == l:
+            ends.append('left')
+        if tile[0] == r or tile[1] == r:
+            ends.append('right')
+        return ends
+
     def make_move(self, tile, player):
         if not self.board:
             self.board.append(tile)
@@ -56,6 +67,24 @@ class DominoLogic:
                 self.board.append(tile)
             elif tile[1] == r:
                 self.board.append((tile[1], tile[0]))
+        self.hands[player].remove(tile)
+        self.current_player = 2 if player == 1 else 1
+
+    def make_move_with_choice(self, tile, player, side):
+        """Ход с выбором стороны"""
+        l, r = self.board[0][0], self.board[-1][1]
+        
+        if side == 'left':
+            if tile[1] == l:
+                self.board.insert(0, tile)
+            elif tile[0] == l:
+                self.board.insert(0, (tile[1], tile[0]))
+        else:  # side == 'right'
+            if tile[0] == r:
+                self.board.append(tile)
+            elif tile[1] == r:
+                self.board.append((tile[1], tile[0]))
+        
         self.hands[player].remove(tile)
         self.current_player = 2 if player == 1 else 1
 
@@ -362,8 +391,27 @@ class DominoApp(QMainWindow):
         return btn
 
     def play_action(self, tile):
-        player = self.logic.current_player  # Запоминаем кто ходит
-        self.logic.make_move(tile, player)
+        player = self.logic.current_player
+        
+        # Проверяем, можно ли поставить с двух сторон
+        ends = self.logic.get_valid_ends(tile)
+        
+        if len(ends) == 2:
+            msg = QMessageBox()
+            msg.setWindowTitle("Выбор стороны")
+            msg.setText(f"Костяшку {tile[0]}-{tile[1]} можно поставить с обеих сторон.\nКуда поставить?")
+            msg.setIcon(QMessageBox.Icon.Question)
+            btn_left = msg.addButton("Слева", QMessageBox.ButtonRole.YesRole)
+            btn_right = msg.addButton("Справа", QMessageBox.ButtonRole.NoRole)
+            msg.exec()
+            
+            if msg.clickedButton() == btn_left:
+                self.logic.make_move_with_choice(tile, player, 'left')
+            else:
+                self.logic.make_move_with_choice(tile, player, 'right')
+        else:
+            # Обычный ход
+            self.logic.make_move(tile, player)
         
         if not self.logic.hands[player]:
             score = self.logic.calculate_score(2 if player == 1 else 1)
