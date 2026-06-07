@@ -362,15 +362,14 @@ class DominoApp(QMainWindow):
         return btn
 
     def play_action(self, tile):
-        self.logic.make_move(tile, self.logic.current_player)
-        # Проверяем, не закончились ли фишки у текущего игрока после хода
-        if not self.logic.hands[self.logic.current_player]:
-        # У текущего игрока не осталось фишек - он победил
-            winner = self.logic.current_player
-            score = self.logic.calculate_score(2 if winner == 1 else 1)
-            self.show_results(f"ПОБЕДА ИГРОКА {winner}!\nОЧКИ ПРОИГРАВШЕГО: {score}")
+        player = self.logic.current_player  # Запоминаем кто ходит
+        self.logic.make_move(tile, player)
+        
+        if not self.logic.hands[player]:
+            score = self.logic.calculate_score(2 if player == 1 else 1)
+            self.show_results(f"ПОБЕДА ИГРОКА {player}!\nОЧКИ ПРОИГРАВШЕГО: {score}")
             return
-    
+        
         self.show_transfer_screen()
 
     def show_transfer_screen(self):
