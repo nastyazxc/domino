@@ -9,19 +9,25 @@ from PyQt6.QtGui import QFont
 # ЛОГИКА ИГРЫ
 class DominoLogic:
     def __init__(self):
-        self.reset_game()
+        self.reset_game() # при создании объекта сразу готовим игру
 
+# сброс игры к начальному состоянию
     def reset_game(self):
+        # генерация полной колоды из 28 костяшек 
         self.deck = [(i, j) for i in range(7) for j in range(i, 7)]
-        random.shuffle(self.deck)
+        random.shuffle(self.deck) # перемешивание колоды
+        # раздача фишек - первому игроку первые 7, второму следующие 7
         self.hands = {1: self.deck[:7], 2: self.deck[7:14]}
-        self.bazaar = self.deck[14:]
+        self.bazaar = self.deck[14:] # остальные 14 уходят в базар
         self.board = []
         self.current_player = self.determine_first_player()
 
+# определение первого хода
     def determine_first_player(self):
+        # проверяем дубль 1-1
         for p in [1, 2]:
             if (1, 1) in self.hands[p]: return p
+        # ищем наибольший дубль (от 6-6 до 0-0)
         best_double = -1
         best_player = 1
         for p in [1, 2]:
@@ -30,6 +36,7 @@ class DominoLogic:
                     best_double = tile[0]
                     best_player = p
         if best_double != -1: return best_player
+        # если дублей нет, выбираем по максимальной сумме очков
         max_sum = -1
         for p in [1, 2]:
             for tile in self.hands[p]:
@@ -38,12 +45,16 @@ class DominoLogic:
                     best_player = p
         return best_player
 
+# проверяется, можно ли выложить данную костяшку на стол
     def is_valid_move(self, tile):
-        if not self.board: return True
-        left_end = self.board[0][0]
-        right_end = self.board[-1][1]
+        if not self.board: 
+            return True # если стол пуст, можно выложить любую
+        left_end = self.board[0][0] # левый конец цепочки
+        right_end = self.board[-1][1] # правый конец цепочки
+        # костяшка подходит, если одно из её значений совпадает с левым или правым концом
         return tile[0] == left_end or tile[1] == left_end or tile[0] == right_end or tile[1] == right_end
 
+# определяет, с каких концов можно выложить костяшку (для выбора игроком)
     def get_valid_ends(self, tile):
         if not self.board:
             return []
@@ -56,25 +67,29 @@ class DominoLogic:
             ends.append('right')
         return ends
 
+# основной метод хода (если костяшка подходит только к одному концу)
     def make_move(self, tile, player):
         if not self.board:
+            # первый ход: просто кладём костяшку на стол
             self.board.append(tile)
         else:
             left_end = self.board[0][0]
             right_end = self.board[-1][1]
-            
+            # проверяем все варианты пристыковки и разворачиваем костяшку при необходимости
             if tile[1] == left_end:
                 self.board.insert(0, tile)
             elif tile[0] == left_end:
-                self.board.insert(0, (tile[1], tile[0]))
+                self.board.insert(0, (tile[1], tile[0])) 
             elif tile[0] == right_end:
                 self.board.append(tile)
-            elif tile[1] == right_end:
-                self.board.append((tile[1], tile[0]))
-        
+            elif tile[1] == right_end: 
+                self.board.append((tile[1], tile[0])) 
+        # удаляем костяшку из руки игрока
         self.hands[player].remove(tile)
+        # переключаем ход на другого игрока
         self.current_player = 2 if player == 1 else 1
 
+# метод хода с выбором стороны (когда костяшка подходит с двух концов)
     def make_move_with_choice(self, tile, player, side):
         left_end = self.board[0][0]
         right_end = self.board[-1][1]
@@ -92,12 +107,13 @@ class DominoLogic:
         
         self.hands[player].remove(tile)
         self.current_player = 2 if player == 1 else 1
-
+# подсчёт суммы очков на всех костяшках игрока
     def calculate_score(self, player):
         return sum(sum(tile) for tile in self.hands[player])
 
 
 # СТИЛИЗАЦИЯ
+
 TILE_STYLE = """
 QPushButton {
     background-color: #fdfdfd;
@@ -148,30 +164,32 @@ QPushButton:hover {
 class DominoApp(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.initUI()
+        self.initUI() # настройка окна
         
         self.logic = DominoLogic()
         self.stacked = QStackedWidget()
         self.setCentralWidget(self.stacked)
 
+        # инициализируем все экраны
         self.init_main_menu()
         self.init_rules_screen()
         self.init_game_screen()
         self.init_end_screen()
         self.init_overlay_screen()
 
+# настройка главного окна
     def initUI(self):
         self.setWindowTitle('Домино')
         self.setStyleSheet("QMainWindow { background-color: rgb(255,238,140); }")
         self.setGeometry(300, 300, 800, 600)
         self.setFixedSize(1540, 890)
-
+# экран передачи хода 
     def init_overlay_screen(self):
         self.overlay_widget = QWidget()
         self.overlay_widget.setStyleSheet("background-color: #2c3e50;")
         layout = QVBoxLayout(self.overlay_widget)
         
-        self.wait_lbl = QLabel("ПЕРЕДАЙТЕ ХОД\nСЛЕДУЮЩЕМУ ИГРОКУ")
+        self.wait_lbl = QLabel()
         self.wait_lbl.setFont(QFont("Arial", 40, QFont.Weight.Bold))
         self.wait_lbl.setStyleSheet("color: white;")
         self.wait_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -181,7 +199,7 @@ class DominoApp(QMainWindow):
         layout.addStretch()
         
         self.stacked.addWidget(self.overlay_widget)
-
+# главное меню
     def init_main_menu(self):
         widget = QWidget()
         layout = QVBoxLayout(widget)
@@ -191,11 +209,13 @@ class DominoApp(QMainWindow):
         title.setStyleSheet("color: #333; margin-bottom: 40px;")
         layout.addWidget(title, alignment=Qt.AlignmentFlag.AlignCenter)
 
+        # кнопки: Играть, Правила, Выход
         for txt in ["ИГРАТЬ", "ПРАВИЛА", "ВЫХОД"]:
             btn = QPushButton(txt)
             btn.setFixedSize(400, 80)
             btn.setFont(QFont("Arial", 22, QFont.Weight.Bold))
             btn.setStyleSheet(BUTTON_STYLE)
+            # привязываем обработчики
             if txt == "ИГРАТЬ":
                 btn.clicked.connect(self.start_new_game)
             elif txt == "ПРАВИЛА":
@@ -205,7 +225,7 @@ class DominoApp(QMainWindow):
             layout.addWidget(btn, alignment=Qt.AlignmentFlag.AlignCenter)
             layout.addSpacing(15)
         self.stacked.addWidget(widget)
-
+# экран правил
     def init_rules_screen(self):
         widget = QWidget()
         widget.setStyleSheet("background-color: rgb(255,238,140);")
@@ -257,11 +277,12 @@ class DominoApp(QMainWindow):
         layout.addStretch()
         
         self.stacked.addWidget(widget)
-            
+# игровое поле            
     def init_game_screen(self):
         self.game_widget = QWidget()
         self.game_widget.setStyleSheet("background-color: rgb(255,238,140);")
         main_l = QVBoxLayout(self.game_widget)
+        # верхняя информационная панель
         info_l = QHBoxLayout()
 
         btn_home = QPushButton("ВЕРНУТЬСЯ В МЕНЮ") 
@@ -270,8 +291,8 @@ class DominoApp(QMainWindow):
         btn_home.setStyleSheet(BUTTON_STYLE)
         btn_home.clicked.connect(lambda: self.stacked.setCurrentIndex(0))
         
-        self.opp_lbl = QLabel()
-        self.baz_lbl = QLabel()
+        self.opp_lbl = QLabel() # информация о сопернике
+        self.baz_lbl = QLabel() # информация о базаре
         for lbl in [self.opp_lbl, self.baz_lbl]:
             lbl.setFont(QFont("Arial", 18, QFont.Weight.Bold))
             lbl.setStyleSheet("color: #333;")
@@ -281,11 +302,16 @@ class DominoApp(QMainWindow):
         info_l.addStretch()
         info_l.addWidget(self.baz_lbl)
         main_l.addLayout(info_l)
-
+# область игровой цепочки с прокруткой
+        # если оно не помещается в видимую область
         self.board_scroll = QScrollArea()
-        self.board_scroll.setWidgetResizable(True)
+        self.board_scroll.setWidgetResizable(True) # позволяет содержимому подстраиваться под размеры области
+
+        # включаем горизонтальную прокрутку (цепочка растёт в длину)
         self.board_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        # отключаем вертикальную (костяшки располагаются в одну строку)
         self.board_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        # стилизация полосы прокрутки под цветовую гамму игры
         self.board_scroll.setStyleSheet("""
             QScrollArea {
                 border: none;
@@ -296,32 +322,31 @@ class DominoApp(QMainWindow):
                 border: none;
                 height: 15px;
             }
-            QScrollBar::handle:horizontal {
-                background-color: #c99c2e;
-                border-radius: 7px;
-                min-width: 50px;
-            }
         """)
-        
+        # создаём внутренний контейнер для костяшек
         self.board_container = QWidget()
         self.board_container.setStyleSheet("background-color: transparent;")
         self.board_l = QGridLayout(self.board_container)
-        self.board_l.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.board_l.setSpacing(5)
+        self.board_l.setAlignment(Qt.AlignmentFlag.AlignCenter) # центрируем содержимое
+        self.board_l.setSpacing(5) # расстояние между костяшками
+        # помещаем контейнер внутрь прокручиваемой области
         self.board_scroll.setWidget(self.board_container)
-        main_l.addWidget(self.board_scroll, 1)
+        main_l.addWidget(self.board_scroll, 1) # растягиваем на всю доступную высоту
 
+        # метка с указанием текущего игрока
         self.turn_lbl = QLabel()
         self.turn_lbl.setFont(QFont("Arial", 24, QFont.Weight.Bold))
         self.turn_lbl.setStyleSheet("color: #d35400;")
         main_l.addWidget(self.turn_lbl, alignment=Qt.AlignmentFlag.AlignCenter)
 
+        # область руки текущего игрока
         self.hand_area = QWidget()
         self.hand_area.setStyleSheet("background-color: transparent;")
         self.hand_l = QHBoxLayout(self.hand_area)
         self.hand_l.setAlignment(Qt.AlignmentFlag.AlignCenter)
         main_l.addWidget(self.hand_area)
 
+        # кнопки управления: взять из базара, сдаться
         ctrl_l = QHBoxLayout()
         btn_baz = QPushButton("ВЗЯТЬ ИЗ БАЗАРА")
         btn_sur = QPushButton("СДАТЬСЯ")
@@ -338,7 +363,7 @@ class DominoApp(QMainWindow):
         ctrl_l.addStretch()
         main_l.addLayout(ctrl_l)
         self.stacked.addWidget(self.game_widget)
-
+# экран результатов
     def init_end_screen(self):
         widget = QWidget()
         layout = QVBoxLayout(widget)
@@ -372,57 +397,61 @@ class DominoApp(QMainWindow):
         
         self.stacked.addWidget(widget)
 
+# запуск новой игры
     def start_new_game(self):
-        self.logic.reset_game()
-        self.update_ui()
-        self.stacked.setCurrentIndex(2)
+        self.logic.reset_game() # сбрасываем логику 
+        self.update_ui() # обновляем интерфейс
+        self.stacked.setCurrentIndex(2) # переходим на игровой экран
 
+# обновление интерфейса
     def update_ui(self):
-        while self.board_l.count():
+        # очищаем старые кнопки на столе
+        while self.board_l.count(): 
             w = self.board_l.takeAt(0).widget()
             if w: w.deleteLater()
-
+        # очищаем старые кнопки в руке
         while self.hand_l.count():
             w = self.hand_l.takeAt(0).widget()
             if w: w.deleteLater()
-
+        # отображаем игровую цепочку на столе
         for i, tile in enumerate(self.logic.board):
             if i == 0:
                 btn = self.create_tile_btn(tile, enabled=False, horizontal=True)
             else:
                 prev_tile = self.logic.board[i-1]
+                # проверяем ориентацию костяшки (разворачиваем при необходимости)
                 if tile[0] == prev_tile[1]:
                     btn = self.create_tile_btn(tile, enabled=False, horizontal=True)
                 else:
                     btn = self.create_tile_btn((tile[1], tile[0]), enabled=False, horizontal=True)
             self.board_l.addWidget(btn, 0, i, alignment=Qt.AlignmentFlag.AlignCenter)
-
+        # отображаем руку текущего игрока
         p = self.logic.current_player
         self.turn_lbl.setText(f"ХОД ИГРОКА {p}")
         for t in self.logic.hands[p]:
             btn = self.create_tile_btn(t, enabled=self.logic.is_valid_move(t))
             btn.clicked.connect(lambda ch, x=t: self.play_action(x))
             self.hand_l.addWidget(btn)
-
+        # обновляем информацию о сопернике и базаре
         opp = 2 if p == 1 else 1
         self.opp_lbl.setText(f"У СОПЕРНИКА: {len(self.logic.hands[opp])}")
         self.baz_lbl.setText(f"БАЗАР: {len(self.logic.bazaar)}")
         self.check_game_over()
-
+# создание кнопки-костяшки с нужным отображением 
     def create_tile_btn(self, tile, enabled=True, horizontal=False):
         is_double = (tile[0] == tile[1])
-        
-        if is_double:
+    
+        if is_double: # дубль отображаем вертикально
             text = f"{tile[0]}\n—\n{tile[1]}"
             btn = QPushButton(text)
             btn.setFixedSize(55, 80)
             btn.setFont(QFont("Arial", 14, QFont.Weight.Bold))
         else:
-            if horizontal:
+            if horizontal: # на столе отображаем горизонтально
                 text = f"{tile[0]} | {tile[1]}"
                 btn = QPushButton(text)
                 btn.setFixedSize(80, 55)
-            else:
+            else: # в руке отображаем вертикально
                 text = f"{tile[0]}\n—\n{tile[1]}"
                 btn = QPushButton(text)
                 btn.setFixedSize(55, 80)
@@ -431,18 +460,17 @@ class DominoApp(QMainWindow):
         btn.setEnabled(enabled)
         btn.setStyleSheet(TILE_STYLE)
         return btn
-
+# проверка ситуации рыба
     def check_fish(self):
         if self.logic.bazaar:
-            return False
-        
+            return False # если базар не пуст, рыбы нет
+        # проверяем, может ли кто-то сделать ход
         can_move_any = any(self.logic.is_valid_move(t) for t in self.logic.hands[1]) or \
                        any(self.logic.is_valid_move(t) for t in self.logic.hands[2])
         
         if can_move_any:
             return False
-        
-        # Рыба! Определяем победителя
+        # рыба - никто не может ходить
         s1, s2 = self.logic.calculate_score(1), self.logic.calculate_score(2)
         if s1 < s2:
             self.show_results(f"РЫБА!\nИГРОК 1: {s1} | ИГРОК 2: {s2}\nПОБЕДА ИГРОКА 1!")
@@ -451,12 +479,12 @@ class DominoApp(QMainWindow):
         else:
             self.show_results(f"РЫБА!\nИГРОК 1: {s1} | ИГРОК 2: {s2}\nНИЧЬЯ!")
         return True
-
+# обработка хода игрока
     def play_action(self, tile):
         player = self.logic.current_player
-        
+        # получаем список концов, куда можно поставить костяшку
         ends = self.logic.get_valid_ends(tile)
-        
+        # если подходит с двух сторон - даём игроку выбор
         if len(ends) == 2:
             msg = QMessageBox()
             msg.setWindowTitle("Выбор стороны")
@@ -471,64 +499,64 @@ class DominoApp(QMainWindow):
             else:
                 self.logic.make_move_with_choice(tile, player, 'right')
         else:
+            # если подходит только к одному концу - ставим автоматически
             self.logic.make_move(tile, player)
-        
+        # проверяем, не выиграл ли игрок
         if not self.logic.hands[player]:
             score = self.logic.calculate_score(2 if player == 1 else 1)
             self.show_results(f"ПОБЕДА ИГРОКА {player}!\nОЧКИ ПРОИГРАВШЕГО: {score}")
             return
-        
+        # проверяем рыбу
         if self.check_fish():
             return
-        
+        # показываем экран передачи хода
         self.show_transfer_screen()
-
+# показ экрана передачи хода
     def show_transfer_screen(self):
         next_player = self.logic.current_player
         self.wait_lbl.setText(f"ХОД\nИГРОКА {next_player}")
         self.stacked.setCurrentIndex(4)
         QTimer.singleShot(3000, self.finish_transfer)
-
+# завершение передачи хода
     def finish_transfer(self):
         if self.check_fish():
             return
         self.update_ui()
-        self.stacked.setCurrentIndex(2)
-
+        self.stacked.setCurrentIndex(2) # возврат на игровой экран
+# взятие костяшки из бзара
     def draw_bazaar(self):
         current_hand = self.logic.hands[self.logic.current_player]
         can_move = any(self.logic.is_valid_move(tile) for tile in current_hand)
-
+        # если есть ход - брать из базара нельзя 
         if can_move:
             QMessageBox.information(self, "Внимание", "У вас есть подходящие фишки! Брать из базара не требуется.")
             return
-
+        # если базар не пуст - берём костяшку
         if self.logic.bazaar:
             self.logic.hands[self.logic.current_player].append(self.logic.bazaar.pop(0))
             self.update_ui()
-        else:
+        else: # базар пуст - проверяем рыбу или передаём ход
             if self.check_fish():
                 return
             self.logic.current_player = 2 if self.logic.current_player == 1 else 1
             self.show_transfer_screen()
-
+# сдача игры
     def surrender_action(self):
         winner = 2 if self.logic.current_player == 1 else 1
         self.show_results(f"ИГРОК {self.logic.current_player} СДАЛСЯ!\nПОБЕДА ИГРОКА {winner}")
-
+# проверка окончания игры (ничья)
     def check_game_over(self):
         if not self.logic.hands[1] and not self.logic.hands[2]:
             self.show_results("НИЧЬЯ!\nУ обоих игроков закончились фишки")
             return True
         return False
-
+# показ экрана результатов
     def show_results(self, text):
         self.res_lbl.setText(text)
         self.stacked.setCurrentIndex(3)
-
-
+# точка входа в приложение
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    ex = DominoApp()
-    ex.showMaximized()
-    sys.exit(app.exec())
+    app = QApplication(sys.argv) # создаём объект приложения
+    ex = DominoApp() # создаём главное окно
+    ex.showMaximized() # открываем на весь экран
+    sys.exit(app.exec()) # запускаем цикл обработки событий
